@@ -4,8 +4,6 @@ import ari.nuryadi.testingbackend.entity.dto.UserDto;
 import ari.nuryadi.testingbackend.entity.model.User;
 import ari.nuryadi.testingbackend.entity.repo.DetailChallengeRepo;
 import ari.nuryadi.testingbackend.entity.repo.UserRepo;
-import ari.nuryadi.testingbackend.service.ChallengeService;
-import ari.nuryadi.testingbackend.service.DetailChallengeService;
 import ari.nuryadi.testingbackend.service.UserService;
 import ari.nuryadi.testingbackend.utils.exception.RowNotFoundDetailNullException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,12 +23,6 @@ public class UserServiceImpl implements UserService {
 
     @Autowired
     private DetailChallengeRepo detailChallengeRepo;
-
-    @Autowired
-    private ChallengeService challengeService;
-
-    @Autowired
-    private DetailChallengeService detailChallengeService;
 
     @Override
     public UserDto getDTOFromModel(User model) {
@@ -54,14 +46,15 @@ public class UserServiceImpl implements UserService {
             model.setPhone(dto.getPhone());
             model.setPoin(0);
         }
-        System.out.println(model);
+
         return model;
     }
 
     @Override
     public List<User> getAllEntity() {
         List<User> result = new ArrayList<>(repo.findAll());
-
+        if (result.isEmpty())
+            throw new RowNotFoundDetailNullException("Empty Result Set");
         return result;
     }
 
@@ -81,6 +74,42 @@ public class UserServiceImpl implements UserService {
             throw new RowNotFoundDetailNullException("Row Cannot be Found for " + ENTITY_ID_LABEL_EMAIL + " : " + email);
 
         return opt.get();
+    }
+
+    @Override
+    public void sumPoint() {
+        List<String> temp = new ArrayList<>();
+
+        List<User> result = new ArrayList<>(repo.findAll());
+        for (User user : result) {
+            temp = detailChallengeRepo.findMatchByUser(user.getId());
+            for (String tempData : temp) {
+                System.out.println(tempData);
+                String[] arrOfStr = tempData.split(",");
+                Integer point;
+                point = Integer.parseInt(arrOfStr[2]);
+
+                repo.updatePointById(point, user.getId());
+                if (arrOfStr[3] == "Done")
+                    detailChallengeRepo.updateStatusByUserId(0, user.getId());
+                else
+                    detailChallengeRepo.updateStatusByUserId(1, user.getId());
+            }
+        }
+
+        getRangking();
+    }
+
+    @Override
+    public void getRangking() {
+        List<String> list = repo.rangking();
+        Integer rank, id;
+        for (String data : list) {
+            String[] arrOfStr = data.split(",");
+            rank = Integer.parseInt(arrOfStr[2]);
+            id = Integer.parseInt(arrOfStr[0]);
+            repo.updateRangkingById(rank, id);
+        }
     }
 
     @Override
